@@ -10,7 +10,7 @@ readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.9"
 authors = [
-    { name = "Vaishnavi Gudur", email = "gudur.vaishnavi@gmail.com" },
+    { name = "Vaishnavi Gudur" },
     { name = "Anshul Rajkumar" },
 ]
 maintainers = [{ name = "Vaishnavi Gudur", email = "gudur.vaishnavi@gmail.com" }]

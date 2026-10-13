@@ -126,7 +126,7 @@ guarded = GuardedMemory(policy=Policy.from_yaml("crew_policy.yaml"))
 
 ## Performance Impact
 
-Agent Memory Guard adds **59 microseconds** median latency per memory operation. CrewAI's internal memory writes typically take 10-50ms (embedding + storage). The security check is negligible.
+Agent Memory Guard adds **62 microseconds** median latency per memory operation. CrewAI's internal memory writes typically take 10-50ms (embedding + storage). The security check is negligible.
 
 ---
 

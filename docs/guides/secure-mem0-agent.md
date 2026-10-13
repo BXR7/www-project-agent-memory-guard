@@ -121,7 +121,7 @@ guard = MemoryGuard(policy=Policy.from_yaml("memory_policy.yaml"))
 
 ## Performance Impact
 
-Agent Memory Guard adds **59 microseconds** median latency per write. For context, a typical Mem0 `add()` call takes 50-200ms (network + embedding). The security check is <0.1% of total write time.
+Agent Memory Guard adds **62 microseconds** median latency per write. For context, a typical Mem0 `add()` call takes 50-200ms (network + embedding). The security check is <0.1% of total write time.
 
 ---
 
