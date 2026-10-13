@@ -95,7 +95,6 @@ nav:
   - Architecture:
       - Design: architecture/design.md
       - Threat Model: architecture/threat-model.md
-      - Cross-Agent Isolation RFC (Draft): architecture/rfc-cross-agent-memory-isolation.md
   - Benchmark:
       - Memory Systems (AMSB): benchmark/memory-systems.md
   - Contributing: contributing.md
