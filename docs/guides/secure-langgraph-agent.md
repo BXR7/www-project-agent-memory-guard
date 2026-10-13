@@ -151,7 +151,7 @@ guarded = GuardedCheckpointer(
 
 ## Performance Impact
 
-Agent Memory Guard adds **59 microseconds** median latency per state validation. LangGraph checkpoint writes typically take 5-50ms (serialization + storage). The security overhead is <0.2% of total checkpoint time.
+Agent Memory Guard adds **62 microseconds** median latency per state validation. LangGraph checkpoint writes typically take 5-50ms (serialization + storage). The security overhead is <0.2% of total checkpoint time.
 
 ---
 

@@ -14,6 +14,22 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Corrected the published median-latency figure from 59 µs to 62 µs in the README, the
+  Chinese and Japanese READMEs, the Mem0, CrewAI and LangGraph guides, and the 0.2.2
+  entry below. 62 µs (61.8 µs) is the median recorded in
+  `benchmarks/results/benchmark_report.md`, the saved output of the 0.2.2 benchmark run
+  on 2026-05-02; no saved run output shows 59 µs. Latency depends on the machine that
+  runs the benchmark. The detection figures (92.5% recall, 100% precision, 0% false
+  positives, F1 0.961) are unchanged.
+- The README benchmark section now describes the corpus as it is: 55 cases, made up of
+  40 representative attack payloads and 15 benign controls. It previously said "55
+  real-world attack payloads".
+- Package metadata lists both authors by name in `authors`. Because setuptools moves an
+  author who has an email address into `Author-email`, PyPI's Author field showed only
+  the co-leader. Vaishnavi Gudur remains the maintainer contact.
+
 ## [0.4.0] - 2026-10-07
 
 ### Added
@@ -313,7 +329,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Security benchmark suite (`benchmarks/security_benchmark.py`) with a labeled corpus of
   55 cases: 40 attack payloads across five categories plus 15 benign controls. This is
   the release the published benchmark figures were measured against — 92.5% recall,
-  100% precision, F1 0.961, 59 µs median added latency per memory operation.
+  100% precision, F1 0.961, 62 µs median added latency per memory operation.
 
 ## [0.2.1] - 2026-05-02
 
