@@ -72,6 +72,9 @@ _STATE_KEY = "amg_state"
 _LOCKED_OPS = frozenset({"write", "delete", "promote", "rollback", "retire", "snapshot"})
 # Traces name the deciding policy rule only while Policy.decide is in use.
 _STOCK_DECIDE = Policy.decide
+# Returned by read() in place of a value the policy asked to redact when no
+# detector can mask the finding (see MemoryGuard._redact).
+_WITHHELD = "[REDACTED]"
 
 
 class MemoryGuard:
@@ -835,7 +838,8 @@ class MemoryGuard:
         finally:
             self._self_reinforcement_detector._pending_source_class = SourceClass.UNKNOWN
         worst = _highest_severity(verdicts)
-        decision = self._decide(verdicts, key=key)
+        redacting: list[DetectionResult] = []
+        decision = self._decide(verdicts, key=key, redacting=redacting)
 
         if decision == Action.BLOCK:
             self._emit(
@@ -872,10 +876,31 @@ class MemoryGuard:
             return Action.QUARANTINE
 
         if decision == Action.REDACT:
-            committed_value = self._redact(value)
-            self._step("redact", "sensitive_data", "secrets masked")
+            committed_value, unredactable = self._redact(value, redacting)
+            if unredactable:
+                # Storing the value would keep what the policy asked to mask, so
+                # fail closed: hold the write for review instead.
+                self._quarantine[key] = value
+                self._step("redact", ", ".join(unredactable), "no redactor; quarantined")
+                self._step("quarantine", key, "held for review, not stored")
+                self._emit(
+                    detector=unredactable[0],
+                    severity=worst,
+                    action=Action.QUARANTINE,
+                    operation="write",
+                    key=key,
+                    message=(
+                        f"Write quarantined: the policy redacts {', '.join(unredactable)} "
+                        "findings, but no detector can mask them"
+                    ),
+                    metadata={"source": source, "unredactable": unredactable},
+                    source_class=normalised_source_class,
+                    receipt_uri=receipt_uri,
+                )
+                return Action.QUARANTINE
+            self._step("redact", _blocking_detector(redacting), "secrets masked")
             self._emit(
-                detector="sensitive_data",
+                detector=_blocking_detector(redacting),
                 severity=worst,
                 action=Action.REDACT,
                 operation="write",
@@ -985,7 +1010,8 @@ class MemoryGuard:
             # value, which only the key's writers may do.
             value = _detach(value)
         verdicts = self._run_detectors(key, value, operation="read")
-        decision = self._decide(verdicts, key=key)
+        redacting: list[DetectionResult] = []
+        decision = self._decide(verdicts, key=key, redacting=redacting)
         worst = _highest_severity(verdicts)
 
         if decision == Action.BLOCK:
@@ -1001,10 +1027,29 @@ class MemoryGuard:
             raise PolicyViolation(f"Read of '{key}' blocked by policy", key=key)
 
         if decision == Action.REDACT:
-            value = self._redact(value)
-            self._step("redact", "sensitive_data", "secrets masked in the returned value")
+            value, unredactable = self._redact(value, redacting)
+            if unredactable:
+                # Returning the value would hand out what the policy asked to mask,
+                # so fail closed: withhold all of it.
+                self._step("redact", ", ".join(unredactable), "no redactor; value withheld")
+                self._emit(
+                    detector=unredactable[0],
+                    severity=worst,
+                    action=Action.REDACT,
+                    operation="read",
+                    key=key,
+                    message=(
+                        f"Value withheld on read: the policy redacts {', '.join(unredactable)} "
+                        "findings, but no detector can mask them"
+                    ),
+                    metadata={"sink": sink, "withheld": True, "unredactable": unredactable},
+                )
+                return _WITHHELD
+            self._step(
+                "redact", _blocking_detector(redacting), "secrets masked in the returned value"
+            )
             self._emit(
-                detector="sensitive_data",
+                detector=_blocking_detector(redacting),
                 severity=worst,
                 action=Action.REDACT,
                 operation="read",
@@ -1340,7 +1385,18 @@ class MemoryGuard:
             )
         return results
 
-    def _decide(self, verdicts: list[DetectionResult], *, key: str) -> Action:
+    def _decide(
+        self,
+        verdicts: list[DetectionResult],
+        *,
+        key: str,
+        redacting: list[DetectionResult] | None = None,
+    ) -> Action:
+        """The most severe action the policy maps any verdict to.
+
+        Verdicts the policy maps to REDACT are appended to ``redacting``, so the
+        caller can mask exactly those findings.
+        """
         tracing = self._trace_on and self._tracing()
         if not verdicts:
             if tracing:
@@ -1350,6 +1406,8 @@ class MemoryGuard:
         for verdict in verdicts:
             # The verdict always comes from decide(), so tracing never changes it.
             action = self._policy.decide(verdict.detector, verdict.severity, key)
+            if action == Action.REDACT and redacting is not None:
+                redacting.append(verdict)
             if tracing:
                 detail = f"decide() -> {action.value}"
                 if getattr(self._policy.decide, "__func__", None) is _STOCK_DECIDE:
@@ -1362,11 +1420,25 @@ class MemoryGuard:
             self._step("decision", "most severe action wins", chosen.value)
         return chosen
 
-    def _redact(self, value: Any) -> Any:
-        for detector in self._detectors:
-            if isinstance(detector, SensitiveDataDetector):
-                return detector.redact(value)
-        return value
+    def _redact(self, value: Any, findings: list[DetectionResult]) -> tuple[Any, list[str]]:
+        """Mask ``findings``, each with the ``redact()`` of the detector that reported it.
+
+        Returns the masked value and the names of the detectors whose findings
+        could not be masked because no detector of that name has a ``redact()``.
+        When that list is not empty, the value still holds what the policy asked
+        to hide, and the caller must neither store nor return it.
+        """
+        masked = value
+        unredactable: list[str] = []
+        for name in dict.fromkeys(finding.detector for finding in findings):
+            owners = [d for d in self._detectors if getattr(d, "name", None) == name]
+            # redact() is optional, so it is not part of the Detector protocol.
+            if not owners or not all(callable(getattr(d, "redact", None)) for d in owners):
+                unredactable.append(name)
+                continue
+            for detector in owners:
+                masked = getattr(detector, "redact")(masked)
+        return masked, unredactable
 
     def _emit(
         self,
