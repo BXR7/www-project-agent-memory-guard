@@ -34,16 +34,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **A redacted finding could be stored and returned unmasked.** The guard masked every
   finding a policy redacts with the built-in `SensitiveDataDetector`, whichever detector
-  reported it. Any other redacted finding was reported as redacted while the value was
-  stored, and later returned, exactly as it was: a finding from a custom detector, from
-  a `sensitive_data` detector wrapped in another object, or one that no rule handled
-  under `default_action: redact`, such as a prompt injection. Each finding is now masked
-  by the `redact()` method of the detector that reported it. When that detector has
-  none, the guard fails closed: the write is quarantined, and a read returns
-  `"[REDACTED]"` instead of the value. Redaction events now name the detector whose
-  finding was masked. With the default detectors, policies that redact only
-  `sensitive_data` findings, including the built-in ones, behave as before. 0.3.3 and
-  earlier releases are affected.
+  reported it. Any other redacted finding was reported as redacted but stored, and later
+  returned, unmasked: a finding from a custom detector, from a `sensitive_data` detector
+  wrapped in another object, or one that no rule handled under `default_action: redact`,
+  such as a prompt injection. Each finding is now masked by the `redact()` method of the
+  detector that reported it. When that detector has none, the guard fails closed: the
+  write is quarantined, and a read returns `"[REDACTED]"` instead of the value.
+  Redaction events now name the detector whose finding was masked. With the default
+  detectors, policies that redact only `sensitive_data` findings, including the built-in
+  ones, behave as before. 0.3.3 and earlier releases are affected.
 
 ## [0.4.0] - 2026-10-07
 
