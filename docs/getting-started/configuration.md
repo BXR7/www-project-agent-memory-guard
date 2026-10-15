@@ -83,6 +83,13 @@ at load time, because it could never fire.
 `PolicyViolation` is raised only for `block`. Redacted and quarantined writes return
 `Action.REDACT` / `Action.QUARANTINE`, so check the return value of `guard.write()`.
 
+`redact` masks each finding with the `redact()` method of the detector that reported it.
+Of the built-in detectors, only `sensitive_data` has one; give your own detector a
+`redact(value)` method if a rule redacts its findings. When nothing can mask a finding
+that the policy redacts, the guard fails closed: the write is quarantined, and a read
+returns `"[REDACTED]"` instead of the value. This includes `default_action: redact`
+applied to a finding from any other built-in detector.
+
 ## Detectors
 
 The default suite is `prompt_injection`, `sensitive_data`, `size_anomaly`,
