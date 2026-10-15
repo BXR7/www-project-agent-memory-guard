@@ -3,8 +3,7 @@
 The guard used to mask every REDACT finding with the first
 ``SensitiveDataDetector`` in its detector list, whichever detector reported the
 finding. A finding from a custom detector, or from a leakage detector wrapped in
-another object, was reported as redacted while the value was stored and
-returned exactly as it was.
+another object, was reported as redacted but stored and returned unmasked.
 
 Each finding is now masked by the ``redact()`` of the detector that reported it.
 When that detector has no ``redact()``, the guard fails closed: a write is
